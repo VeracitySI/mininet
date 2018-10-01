@@ -285,14 +285,22 @@ class CLI( Cmd ):
 
             if node.name[0] == 's':
                 switch_count +=1
-                mac_key = node_dict['ports'].values()[1]['mac'].replace(':','').upper()
-                node_container['switches'][mac_key] = node_dict
+                try:
+                  mac_key = node_dict['ports'].values()[1]['mac'].replace(':','').upper()
+                except:
+                  mac_key = None
+                if mac_key:
+                  node_container['switches'][mac_key] = node_dict
                 #do not include the lo port in this count
                 port_count += len(node_dict['ports']) -1
             elif node.name[0] == 'h':
                 host_count +=1
-                mac_key = node_dict['ports'].values()[0]['mac'].replace(':','').upper()
-                node_container['hosts'][mac_key] = node_dict
+                try:
+                  mac_key = node_dict['ports'].values()[0]['mac'].replace(':','').upper()
+                except:
+                  mac_key = None
+                if mac_key:
+                  node_container['hosts'][mac_key] = node_dict
                 port_count += len(node_dict['ports'])
             elif node.name[0] == 'c':
                 node_container['controllers'][node.name] = node_dict
