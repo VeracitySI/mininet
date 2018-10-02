@@ -718,6 +718,33 @@ class Mininet( object ):
         rttdev = float( m.group( 4 ) )
         return sent, received, rttmin, rttavg, rttmax, rttdev
 
+    @staticmethod
+    def _parsePingFullFast( pingOutput ):
+        "Parse full fping output and return all data."
+        fast_ping_sent_loss_components = pingOutput.split(',')[0]
+        if ',' in pingOutput:
+          fast_ping_metric_components = pingOutput.split(',')[1]
+        else:
+          fast_ping_metric_components = " = 0.0/0.0/0.0"   
+        fast_ping_components = fast_ping_sent_loss_components.split('=')[-1].split('/')
+        fast_ping_metrics = fast_ping_metric_components.split('=')[-1].split('/')
+        sent, received, loss = fast_ping_components
+        loss = loss.split('%')[0]
+        
+        rttmin , rttavg, rttmax = fast_ping_metrics
+
+        return int(sent), int(received), float(loss),  float(rttmin), float(rttavg), float(rttmax)
+
+    @staticmethod
+    def _parsePingFast( pingOutput ):
+        "Parse fping output and return all data."
+        #10.0.75.130 : xmt/rcv/%loss = 3/3/0%, min/avg/max = 3.43/8.25/13.1
+        fast_ping_components = pingOutput.split(',')[0].split('=')[-1].split('/')
+        sent, received, loss = fast_ping_components
+        loss = loss.split('%')[0]
+        return int(sent), int(received), int(loss)
+
+
     def pingFull( self, hosts=None, timeout=None ):
         """Ping between all specified hosts and return all data.
            hosts: list of hosts
@@ -751,6 +778,88 @@ class Mininet( object ):
                     (rttmin, rttavg, rttmax, rttdev) )
         return all_outputs
 
+    def pingFullFast( self, hosts=None, timeout=None ):
+        """Ping between all specified hosts using fping and return all data.
+           hosts: list of hosts
+           timeout: time to wait for a response, as string
+           returns: all ping data; see function body."""
+        # should we check if running?
+        # Each value is a tuple: (src, dsd, [all ping outputs])
+        all_outputs = []
+        if not hosts:
+            hosts = self.hosts
+            output( '*** Fast ping (fping) : testing ping reachability\n' )
+        for node in hosts:
+            output( '%s -> ' % node.name )
+            for dest in hosts:
+                if node != dest:
+                    opts = '-q -4 -i 1 -e -D -c 1 -t {}'
+                    timeout_val = '500'
+                    if timeout:
+                      timeout_val = timeout
+                    opts = opts.format(timeout_val)
+                    fping_command = 'fping  {} {}'.format(opts, dest.IP())
+                    result = node.cmd( fping_command )
+                    outputs = self._parsePingFullFast( result )
+                    sent, received, loss, rttmin, rttavg, rttmax = outputs
+                    all_outputs.append( (node, dest, outputs) )
+                    output( ( '%s ' % dest.name ) if received else 'X ' )
+            output( '\n' )
+        output( "*** Results: \n" )
+        for outputs in all_outputs:
+            src, dest, ping_outputs = outputs
+            sent, received, loss, rttmin, rttavg, rttmax = ping_outputs
+            output( " %s->%s: %s/%s, " % (src, dest, sent, received ) )
+            output( "loss %% %0.3f  rtt min/avg/max %0.3f/%0.3f/%0.3f ms\n" %
+                    (loss, rttmin, rttavg, rttmax) )
+        return all_outputs
+
+    def pingFast( self, hosts=None, timeout=None):
+        """Ping between all specified hosts using fping and return all data.
+           hosts: list of hosts
+           timeout: time to wait for a response, as string
+           returns: all ping data; see function body."""
+        # should we check if running?
+        # Each value is a tuple: (src, dsd, [all ping outputs])
+        all_outputs = []
+        if not hosts:
+            hosts = self.hosts
+            output( '*** Fast ping (fping): testing fping reachability\n' )
+        packets = 0
+        lost = 0
+        ploss = None
+        for node in hosts:
+            output( '%s -> ' % node.name )
+            for dest in hosts:
+                if node != dest:
+                    opts = '-q -4 -i 1 -e -D -c 1 -t {}'
+                    timeout_val = '500'
+                    if timeout:
+                      timeout_val = timeout
+                    opts = opts.format(timeout_val)
+                    fping_command = 'fping  {} {}'.format(opts, dest.IP())
+                    result = node.cmd( fping_command )
+                    outputs = self._parsePingFast( result )
+                    sent, received, loss = outputs
+                    packets += sent
+                    lost += sent - received
+                    all_outputs.append( (node, dest, outputs) )
+                    output( ( '%s ' % dest.name ) if received else 'X ' )
+            output( '\n' )
+
+        output( "*** Results: \n" )
+        if packets > 0:
+           ploss = 100.0 * lost / packets
+           received = packets - lost
+           output( "*** Results: %i%% dropped (%d/%d received)\n" %
+                 ( ploss, received, packets ) )
+        else:
+           ploss = 0
+           output( "*** Warning: No packets sent\n" )
+
+        return all_outputs
+
+
     def pingAll( self, timeout=None ):
         """Ping between all hosts.
            returns: ploss packet loss percentage"""
@@ -762,10 +871,20 @@ class Mininet( object ):
         hosts = [ self.hosts[ 0 ], self.hosts[ 1 ] ]
         return self.ping( hosts=hosts )
 
+    def pingAllFast( self, timeout=None):
+        """Ping between all hosts using fping.
+           returns: ploss packet loss percentage"""
+        return self.pingFast(timeout=timeout)
+
     def pingAllFull( self ):
         """Ping between all hosts.
            returns: ploss packet loss percentage"""
         return self.pingFull()
+
+    def pingAllFullFast( self ):
+        """Ping between all hosts using fping.
+           returns: ploss packet loss percentage"""
+        return self.pingFullFast()
 
     def pingPairFull( self ):
         """Ping between first two hosts, useful for testing.

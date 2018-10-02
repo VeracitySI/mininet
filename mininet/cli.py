@@ -194,6 +194,10 @@ class CLI( Cmd ):
 
     # pylint: enable=broad-except,exec-used
 
+    def do_pingallfast( self, line ):
+        "Ping between all hosts using fping."
+        self.mn.pingAllFast( line )
+
     def do_pingall( self, line ):
         "Ping between all hosts."
         self.mn.pingAll( line )
@@ -205,6 +209,10 @@ class CLI( Cmd ):
     def do_pingallfull( self, _line ):
         "Ping between all hosts, returns all ping results."
         self.mn.pingAllFull()
+
+    def do_pingallfullfast( self, line ):
+        "Ping between all hosts, returns all ping results using fping."
+        self.mn.pingAllFullFast()
 
     def do_pingpairfull( self, _line ):
         "Ping between first two hosts, returns all ping results."
