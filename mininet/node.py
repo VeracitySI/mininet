@@ -616,7 +616,7 @@ class Node( object ):
 
     def __repr__( self ):
         "More informative string representation"
-        intfs = ( ','.join( [ '%s:%s' % ( i.name, i.IP() )
+        intfs = ( ','.join( [ '%s:%s:%s' % ( i.name, i.IP(), i.MAC() )
                               for i in self.intfList() ] ) )
         return '<%s %s: %s pid=%s> ' % (
             self.__class__.__name__, self.name, intfs, self.pid )

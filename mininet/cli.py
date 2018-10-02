@@ -263,6 +263,56 @@ class CLI( Cmd ):
         for node in self.mn.values():
             output( '%s\n' % repr( node ) )
 
+    def do_save( self, _line ):
+        "Save node info in JSON format."
+        import json
+        node_container = {}
+        node_container['controllers'] = {}
+        node_container['switches'] = {}
+        node_container['hosts'] = {}
+        host_count = 0
+        switch_count = 0
+        port_count = 0
+        for node in self.mn.values():
+            mac_key = None
+            node_dict = {}
+            node_dict['name'] = node.name
+            node_dict['ports'] = {}
+            for i in node.intfList():
+                node_dict['ports'][i.name] = {}
+                node_dict['ports'][i.name]['ip']  = i.IP()
+                node_dict['ports'][i.name]['mac'] = i.MAC()
+
+            if node.name[0] == 's':
+                switch_count +=1
+                try:
+                  mac_key = node_dict['ports'].values()[1]['mac'].replace(':','').upper()
+                except:
+                  mac_key = None
+                if mac_key:
+                  node_container['switches'][mac_key] = node_dict
+                #do not include the lo port in this count
+                port_count += len(node_dict['ports']) -1
+            elif node.name[0] == 'h':
+                host_count +=1
+                try:
+                  mac_key = node_dict['ports'].values()[0]['mac'].replace(':','').upper()
+                except:
+                  mac_key = None
+                if mac_key:
+                  node_container['hosts'][mac_key] = node_dict
+                port_count += len(node_dict['ports'])
+            elif node.name[0] == 'c':
+                node_container['controllers'][node.name] = node_dict
+            else:
+                pass
+        node_container['port_count'] = port_count
+        node_container['switch_count'] = switch_count
+        node_container['host_count'] = host_count
+        with open('/root/nodes.json','wb') as save_file:
+            json.dump(node_container,
+                      save_file)
+
     def do_link( self, line ):
         """Bring link(s) between two nodes up or down.
            Usage: link node1 node2 [up/down]"""
